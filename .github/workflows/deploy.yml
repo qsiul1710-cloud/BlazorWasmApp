@@ -9,9 +9,15 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
@@ -25,10 +31,16 @@ jobs:
       run: dotnet build --configuration Release --no-restore
 
     - name: Publish
-      run: dotnet publish -c Release -o release --nologo
+      run: dotnet publish -c Release -o ./publish --nologo
+
+    - name: Copy index.html to 404.html
+      run: cp ./publish/wwwroot/index.html ./publish/wwwroot/404.html
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: './publish/wwwroot'
 
     - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./release/wwwroot
+      id: deployment
+      uses: actions/deploy-pages@v2
