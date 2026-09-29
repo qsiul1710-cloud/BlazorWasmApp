@@ -1,0 +1,64 @@
+﻿@using BlazorWasmApp.Services
+@inject AuthenticationService AuthService
+@inject NavigationManager NavManager
+
+@if (!AuthService.IsAuthenticated)
+{
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            @if (IsPublicRoute(routeData.PageType.Name))
+            {
+                <RouteView RouteData="@routeData" DefaultLayout="@typeof(LoginLayout)"/>
+            }
+            else
+            {
+                NavManager.NavigateTo("/login", forceLoad: false);
+            }
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>No encontrado</PageTitle>
+            <LayoutView Layout="@typeof(LoginLayout)">
+                <p role="alert">Página no encontrada. Por favor, <a href="/login">inicia sesión</a>.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+else
+{
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>No encontrado</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Lo sentimos, no hay nada en esta dirección.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Suscribirse a cambios en el estado de autenticación para re-renderizar
+        AuthService.OnAuthenticationStateChanged += StateHasChanged;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // Si el usuario no está autenticado y no está en la página de login, redirigir
+        if (!AuthService.IsAuthenticated && !NavManager.Uri.Contains("login"))
+        {
+            NavManager.NavigateTo("/login", forceLoad: false);
+        }
+    }
+
+    private bool IsPublicRoute(string pageName)
+    {
+        var publicRoutes = new[] { "Login" };
+        return publicRoutes.Contains(pageName);
+    }
+}

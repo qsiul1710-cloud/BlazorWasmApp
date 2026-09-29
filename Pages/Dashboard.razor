@@ -1,0 +1,312 @@
+@page "/dashboard"
+@using BlazorWasmApp.DTOs
+@using BlazorWasmApp.Services
+@using BlazorWasmApp.Entities
+@using MudBlazor
+@inject AnalysisService AnalysisService
+@inject SupplierService SupplierService
+@inject LotService LotService
+
+<PageTitle>Dashboard</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
+    <MudText Typo="Typo.h3" Class="mb-8">📊 Dashboard</MudText>
+
+    <!-- Cards de Estadísticas -->
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="d-flex align-center justify-center mud-theme-primary" Style="min-height: 150px;">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Assessment" Style="font-size: 2.5rem;" />
+                        <MudText Typo="Typo.h6" Align="Align.Center">Análisis Total</MudText>
+                        <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Primary">
+                            @totalAnalysis
+                        </MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="d-flex align-center justify-center" Style="min-height: 150px; background-color: #e3f2fd;">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory2" Style="font-size: 2.5rem;" />
+                        <MudText Typo="Typo.h6" Align="Align.Center">Lotes Total</MudText>
+                        <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Info">
+                            @totalLots
+                        </MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="d-flex align-center justify-center" Style="min-height: 150px; background-color: #fff3e0;">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Style="font-size: 2.5rem;" />
+                        <MudText Typo="Typo.h6" Align="Align.Center">Proveedores</MudText>
+                        <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Warning">
+                            @totalSuppliers
+                        </MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="d-flex align-center justify-center" Style="min-height: 150px; background-color: #f3e5f5;">
+                <MudCardContent>
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Palette" Style="font-size: 2.5rem;" />
+                        <MudText Typo="Typo.h6" Align="Align.Center">Cantidad Total</MudText>
+                        <MudText Typo="Typo.h5" Align="Align.Center" Color="Color.Secondary">
+                            @totalQuantity.ToString("F0")
+                        </MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Gráficos y Tablas de Resumen -->
+    <MudGrid Class="mt-8">
+        <!-- Gráfico de Lotes por Estado -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Lotes por Estado</MudText>
+                <MudChart ChartType="ChartType.Donut" ChartSeries="@lotesByStateChartSeries" @bind-SelectedIndex="selectedLotesIndex" />
+            </MudPaper>
+        </MudItem>
+
+        <!-- Gráfico de Lotes por Tipo -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Lotes por Tipo de Material</MudText>
+                <MudChart ChartType="ChartType.Donut" ChartSeries="@lotesByTypeChartSeries" @bind-SelectedIndex="selectedTypeIndex" />
+            </MudPaper>
+        </MudItem>
+
+        <!-- Tabla de Proveedores con Conteo de Lotes -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Proveedores (Lotes Asociados)</MudText>
+                <MudTable Items="supplierStats" Hover="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Proveedor</MudTh>
+                        <MudTh Align="Align.Right">Lotes</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Proveedor">
+                            <MudText Typo="Typo.body2">@context.Name</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Lotes" Align="Align.Right">
+                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                                @context.LotCount
+                            </MudChip>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Análisis Recientes -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Últimos Análisis</MudText>
+                <MudTable Items="recentAnalyses" Hover="true" Striped="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>ID</MudTh>
+                        <MudTh>Creación</MudTh>
+                        <MudTh>Cantidad</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="ID">
+                            <MudText Typo="Typo.body2"><strong>@context.Id</strong></MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Creación">
+                            <MudText Typo="Typo.body2">@context.Create.ToString("dd/MM/yyyy")</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Cantidad">
+                            <MudText Typo="Typo.body2">@context.Quantity</MudText>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Resumen de Información -->
+    <MudGrid Class="mt-8">
+        <MudItem xs="12">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Resumen de Información</MudText>
+                <MudSimpleTable Striped="true">
+                    <tbody>
+                        <tr>
+                            <td><strong>Total de Análisis:</strong></td>
+                            <td>@totalAnalysis</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total de Lotes:</strong></td>
+                            <td>@totalLots</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total de Proveedores:</strong></td>
+                            <td>@totalSuppliers</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cantidad Total en Lotes:</strong></td>
+                            <td>@totalQuantity.ToString("F0")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Lotes Aceptados:</strong></td>
+                            <td>
+                                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small">
+                                    @acceptedLots
+                                </MudChip>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Lotes Pendientes:</strong></td>
+                            <td>
+                                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
+                                    @pendingLots
+                                </MudChip>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Lotes Rechazados:</strong></td>
+                            <td>
+                                <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small">
+                                    @rejectedLots
+                                </MudChip>
+                            </td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    // Estadísticas
+    private int totalAnalysis = 0;
+    private int totalLots = 0;
+    private int totalSuppliers = 0;
+    private decimal totalQuantity = 0;
+    private int acceptedLots = 0;
+    private int pendingLots = 0;
+    private int rejectedLots = 0;
+
+    // Datos
+    private IEnumerable<AnalysisDto> analyses = null!;
+    private IEnumerable<LotDto> lots = null!;
+    private IEnumerable<SupplierDto> suppliers = null!;
+
+    // Gráficos
+    private List<ChartSeries<double>> lotesByStateChartSeries = new();
+    private List<ChartSeries<double>> lotesByTypeChartSeries = new();
+    private int selectedLotesIndex = -1;
+    private int selectedTypeIndex = -1;
+
+    // Tablas filtradas
+    private List<SupplierStatDto> supplierStats = new();
+    private List<AnalysisDto> recentAnalyses = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        // Cargar datos
+        analyses = await AnalysisService.GetAllAsync();
+        suppliers = await SupplierService.GetAllAsync();
+        lots = await LotService.GetAllAsync();
+
+        // Calcular estadísticas
+        totalAnalysis = analyses.Count();
+        totalLots = lots.Count();
+        totalSuppliers = suppliers.Count();
+        totalQuantity = lots.Sum(l => l.Quantity ?? 0);
+
+        // Contar lotes por estado
+        acceptedLots = lots.Count(l => l.StateLot == State.Aceptado);
+        pendingLots = lots.Count(l => l.StateLot == State.Pendiente);
+        rejectedLots = lots.Count(l => l.StateLot == State.Rechazado);
+
+        // Preparar gráficos
+        await PrepareCharts();
+
+        // Estadísticas de proveedores
+        await PrepareSupplierStats();
+
+        // Análisis recientes
+        recentAnalyses = analyses.OrderByDescending(a => a.Create).Take(5).ToList();
+    }
+
+    private async Task PrepareCharts()
+    {
+        var stateCountDict = await LotService.GetCountByStateAsync();
+        var typeCountDict = await LotService.GetCountByTypeAsync();
+
+        // Gráfico de estados
+        var stateLabels = new List<string>();
+        var stateData = new List<double>();
+
+        foreach (var item in stateCountDict)
+        {
+            stateLabels.Add(item.Key == State.Aceptado ? "Aceptado" :
+                           item.Key == State.Pendiente ? "Pendiente" : "Rechazado");
+            stateData.Add(item.Value);
+        }
+
+        lotesByStateChartSeries.Add(new ChartSeries<double>
+        {
+            Name = "Lotes",
+            Data = stateData.ToArray()
+        });
+
+        // Gráfico de tipos
+        var typeLabels = new List<string>();
+        var typeData = new List<double>();
+
+        foreach (var item in typeCountDict)
+        {
+            typeLabels.Add(item.Key == Entities.Type.MateriaPrima ? "Materia Prima" : "Empaque");
+            typeData.Add(item.Value);
+        }
+
+        lotesByTypeChartSeries.Add(new ChartSeries<double>
+        {
+            Name = "Lotes",
+            Data = typeData.ToArray()
+        });
+    }
+
+    private async Task PrepareSupplierStats()
+    {
+        supplierStats.Clear();
+
+        foreach (var supplier in suppliers)
+        {
+            var supplierLots = await LotService.GetBySupplierIdAsync(supplier.Id);
+            supplierStats.Add(new SupplierStatDto
+            {
+                Name = supplier.Name ?? "N/A",
+                LotCount = supplierLots.Count()
+            });
+        }
+    }
+
+    private class SupplierStatDto
+    {
+        public string? Name { get; set; }
+        public int LotCount { get; set; }
+    }
+}

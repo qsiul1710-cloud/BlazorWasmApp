@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlazorWasmApp</title>
+    <script>
+        // Redirigir todas las rutas al index.html de Blazor
+        var pathSegments = window.location.pathname.split('/').filter(function(p) { return p; });
+        if (pathSegments[0] === 'BlazorWasmApp') {
+            pathSegments.shift();
+        }
+        var path = '/' + pathSegments.join('/');
+        if (path !== '/' && !path.includes('.')) {
+            window.location.replace('/BlazorWasmApp/#' + path);
+        } else {
+            window.location.replace('/BlazorWasmApp/');
+        }
+    </script>
+</head>
+<body></body>
+</html>

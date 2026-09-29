@@ -1,0 +1,46 @@
+@using BlazorWasmApp.Services
+@inject AuthenticationService AuthService
+@inject NavigationManager NavManager
+
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavLink Href="dashboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+    <MudNavLink Href="supplier" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocalShipping">Proveedores</MudNavLink>
+    <MudNavLink Href="lot" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory2">Lotes</MudNavLink>
+    <MudNavLink Href="analysis" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assessment">Análisis</MudNavLink>
+
+    <MudDivider Class="my-2" />
+
+    @if (AuthService.IsAuthenticated && AuthService.CurrentUser != null)
+    {
+        <MudStack Spacing="1" Class="px-4 py-2">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Sesión Iniciada
+            </MudText>
+            <MudText Typo="Typo.body2" Class="font-weight-bold">
+                👤 @AuthService.CurrentUser.FullName
+            </MudText>
+            <MudButton 
+                Variant="Variant.Outlined"
+                Color="Color.Error"
+                Size="Size.Small"
+                FullWidth="true"
+                OnClick="@HandleLogout"
+                StartIcon="@Icons.Material.Filled.Logout"
+                Class="mt-2">
+                Cerrar Sesión
+            </MudButton>
+        </MudStack>
+    }
+</MudNavMenu>
+
+@code {
+    /// <summary>
+    /// Maneja el logout del usuario.
+    /// </summary>
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        NavManager.NavigateTo("/login", forceLoad: true);
+    }
+}

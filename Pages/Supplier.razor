@@ -1,0 +1,263 @@
+@page "/supplier"
+@using BlazorWasmApp.DTOs
+@using BlazorWasmApp.Services
+@using MudBlazor
+@inject SupplierService SupplierService
+@inject ISnackbar Snackbar
+
+<PageTitle>Gestión de Proveedores</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
+    <MudText Typo="Typo.h3" Class="mb-2">Gestión de Proveedores</MudText>
+    <MudText Typo="Typo.body2" Class="mb-6" Color="Color.Secondary">
+        Administra la información de tus proveedores
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" sm="8">
+            <!-- Tabla de Proveedores -->
+            <MudPaper Class="pa-4 mb-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h5">Lista de Proveedores</MudText>
+                    <MudSpacer />
+                    <MudChip T="string" Variant="Variant.Filled" Color="Color.Primary">
+                        Total: @(suppliers?.Count() ?? 0)
+                    </MudChip>
+                </MudStack>
+
+                @if (suppliers == null)
+                {
+                    <MudProgressCircular IsIndeterminate="true" />
+                }
+                else if (!suppliers.Any())
+                {
+                    <MudAlert Severity="Severity.Info">No hay proveedores registrados.</MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="suppliers" Hover="true" FixedHeader="true" Height="400px">
+                        <HeaderContent>
+                            <MudTh>ID</MudTh>
+                            <MudTh>Nombre</MudTh>
+                            <MudTh>Contacto</MudTh>
+                            <MudTh>Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="ID">
+                                <MudText Typo="Typo.body2"><strong>@context.Id</strong></MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Nombre">
+                                <MudText Typo="Typo.body2">@context.Name</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Contacto">
+                                <MudText Typo="Typo.body2">@context.Contact</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Acciones">
+                                <MudButtonGroup Size="Size.Small" Variant="Variant.Text">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   OnClick="@(() => EditSupplier(context))" 
+                                                   Title="Editar"
+                                                   Color="Color.Info" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   OnClick="@(() => DeleteSupplier(context.Id))" 
+                                                   Title="Eliminar"
+                                                   Color="Color.Error" />
+                                </MudButtonGroup>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="4">
+            <!-- Formulario CRUD -->
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h5" Class="mb-4">
+                    @(isEditing ? "✏️ Editar Proveedor" : "➕ Nuevo Proveedor")
+                </MudText>
+
+                <EditForm Model="formModel" OnSubmit="@HandleSubmit">
+                    <DataAnnotationsValidator />
+
+                    @if (isEditing)
+                    {
+                        <MudTextField @bind-Value="idReadOnly" 
+                                      Label="ID" 
+                                      Disabled="true"
+                                      Class="mb-3" />
+                    }
+
+                    <MudTextField @bind-Value="formModel.Name" 
+                                  Label="Nombre del Proveedor" 
+                                  Placeholder="Ej: Suministros Premium"
+                                  Class="mb-3"
+                                  Required="true" />
+
+                    <MudTextField @bind-Value="formModel.Contact" 
+                                  Label="Contacto"
+                                  Placeholder="Ej: info@proveedor.com o +1-234-567-8900"
+                                  Class="mb-4" />
+
+                    <MudStack Row="true" Class="mb-2">
+                        <MudButton ButtonType="ButtonType.Submit" 
+                                   Color="Color.Success"
+                                   Variant="Variant.Filled"
+                                   FullWidth="true">
+                            @(isEditing ? "Actualizar" : "Crear")
+                        </MudButton>
+                        @if (isEditing)
+                        {
+                            <MudButton OnClick="@ResetForm" 
+                                       Color="Color.Default" 
+                                       Variant="Variant.Outlined"
+                                       FullWidth="true">
+                                Cancelar
+                            </MudButton>
+                        }
+                    </MudStack>
+                </EditForm>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private IEnumerable<SupplierDto> suppliers = null!;
+    private SupplierFormModel formModel = new();
+    private bool isEditing = false;
+    private int editingId = 0;
+    private int? idReadOnly;
+
+    /// <summary>
+    /// Inicializa el componente cargando los proveedores.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSuppliers();
+    }
+
+    /// <summary>
+    /// Carga todos los proveedores del servicio.
+    /// </summary>
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            suppliers = await SupplierService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar los proveedores: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Prepara el formulario para editar un proveedor.
+    /// </summary>
+    private void EditSupplier(SupplierDto supplier)
+    {
+        isEditing = true;
+        editingId = supplier.Id;
+        idReadOnly = supplier.Id;
+        formModel = new SupplierFormModel
+        {
+            Name = supplier.Name,
+            Contact = supplier.Contact
+        };
+    }
+
+    /// <summary>
+    /// Maneja el envío del formulario para crear o actualizar un proveedor.
+    /// </summary>
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(formModel.Name))
+            {
+                Snackbar.Add("El nombre del proveedor es obligatorio", Severity.Warning);
+                return;
+            }
+
+            if (isEditing)
+            {
+                var updateDto = new UpdateSupplierDto
+                {
+                    Id = editingId,
+                    Name = formModel.Name,
+                    Contact = formModel.Contact
+                };
+
+                var result = await SupplierService.UpdateAsync(editingId, updateDto);
+                if (result != null)
+                {
+                    Snackbar.Add("✅ Proveedor actualizado correctamente", Severity.Success);
+                    ResetForm();
+                }
+                else
+                {
+                    Snackbar.Add("❌ No se encontró el proveedor", Severity.Warning);
+                }
+            }
+            else
+            {
+                var createDto = new CreateSupplierDto
+                {
+                    Name = formModel.Name,
+                    Contact = formModel.Contact
+                };
+
+                var result = await SupplierService.CreateAsync(createDto);
+                if (result != null)
+                {
+                    Snackbar.Add("✅ Proveedor creado correctamente", Severity.Success);
+                    ResetForm();
+                }
+            }
+
+            await LoadSuppliers();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Elimina un proveedor.
+    /// </summary>
+    private async Task DeleteSupplier(int id)
+    {
+        try
+        {
+            await SupplierService.DeleteAsync(id);
+            Snackbar.Add("✅ Proveedor eliminado correctamente", Severity.Success);
+            await LoadSuppliers();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error al eliminar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Reinicia el formulario.
+    /// </summary>
+    private void ResetForm()
+    {
+        isEditing = false;
+        editingId = 0;
+        idReadOnly = null;
+        formModel = new SupplierFormModel();
+    }
+
+    /// <summary>
+    /// Modelo para el formulario de proveedor.
+    /// </summary>
+    private class SupplierFormModel
+    {
+        public string? Name { get; set; }
+        public string? Contact { get; set; }
+    }
+}

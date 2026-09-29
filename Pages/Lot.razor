@@ -1,0 +1,415 @@
+@page "/lot"
+@using BlazorWasmApp.DTOs
+@using BlazorWasmApp.Services
+@using BlazorWasmApp.Entities
+@using MudBlazor
+@inject LotService LotService
+@inject SupplierService SupplierService
+@inject ISnackbar Snackbar
+
+<PageTitle>Gestión de Lotes</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
+    <MudText Typo="Typo.h3" Class="mb-2">Gestión de Lotes</MudText>
+    <MudText Typo="Typo.body2" Class="mb-6" Color="Color.Secondary">
+        Administra los lotes de materiales y sus relaciones con proveedores
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" sm="8">
+            <!-- Tabla de Lotes -->
+            <MudPaper Class="pa-4 mb-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h5">Lista de Lotes</MudText>
+                    <MudSpacer />
+                    <MudChip T="string" Variant="Variant.Filled" Color="Color.Primary">
+                        Total: @(lots?.Count() ?? 0)
+                    </MudChip>
+                </MudStack>
+
+                @if (lots == null)
+                {
+                    <MudProgressCircular IsIndeterminate="true" />
+                }
+                else if (!lots.Any())
+                {
+                    <MudAlert Severity="Severity.Info">No hay lotes registrados.</MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="lots" Hover="true" FixedHeader="true" Height="500px">
+                        <HeaderContent>
+                            <MudTh>ID</MudTh>
+                            <MudTh>Código</MudTh>
+                            <MudTh>Nombre</MudTh>
+                            <MudTh>Proveedor</MudTh>
+                            <MudTh>Cantidad</MudTh>
+                            <MudTh>Tipo</MudTh>
+                            <MudTh>Estado</MudTh>
+                            <MudTh>Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="ID">
+                                <MudText Typo="Typo.body2"><strong>@context.Id</strong></MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Código">
+                                <MudText Typo="Typo.body2">@context.Code</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Nombre">
+                                <MudText Typo="Typo.body2">@context.Name</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Proveedor">
+                                <MudText Typo="Typo.body2">@(context.SupplierName ?? "N/A")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Cantidad">
+                                <MudText Typo="Typo.body2">@context.Quantity</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Tipo">
+                                @if (context.TypeMaterial == Entities.Type.MateriaPrima)
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
+                                        Materia Prima
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small">
+                                        Empaque
+                                    </MudChip>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Estado">
+                                @if (context.StateLot == State.Aceptado)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small">
+                                        Aceptado
+                                    </MudChip>
+                                }
+                                else if (context.StateLot == State.Pendiente)
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
+                                        Pendiente
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small">
+                                        Rechazado
+                                    </MudChip>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Acciones">
+                                <MudButtonGroup Size="Size.Small" Variant="Variant.Text">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   OnClick="@(() => EditLot(context))" 
+                                                   Title="Editar"
+                                                   Color="Color.Info" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   OnClick="@(() => DeleteLot(context.Id))" 
+                                                   Title="Eliminar"
+                                                   Color="Color.Error" />
+                                </MudButtonGroup>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="4">
+            <!-- Formulario CRUD -->
+            <MudPaper Class="pa-4" Style="max-height: 800px; overflow-y: auto;">
+                <MudText Typo="Typo.h5" Class="mb-4">
+                    @(isEditing ? "✏️ Editar Lote" : "➕ Nuevo Lote")
+                </MudText>
+
+                <EditForm Model="formModel" OnSubmit="@HandleSubmit">
+                    <DataAnnotationsValidator />
+
+                    @if (isEditing)
+                    {
+                        <MudTextField @bind-Value="idReadOnly" 
+                                      Label="ID" 
+                                      Disabled="true"
+                                      Class="mb-3" />
+                    }
+
+                    <MudTextField @bind-Value="formModel.Code" 
+                                  Label="Código del Lote" 
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="formModel.Name" 
+                                  Label="Nombre"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="formModel.Batch" 
+                                  Label="Batch"
+                                  Class="mb-3" />
+
+                    <MudSelect @bind-Value="formModel.LotSuplier" Label="Proveedor" Class="mb-3">
+                        @foreach (var supplier in suppliers ?? Enumerable.Empty<SupplierDto>())
+                        {
+                            <MudSelectItem Value="@supplier.Id.ToString()">@supplier.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudNumericField @bind-Value="formModel.Quantity" 
+                                     Label="Cantidad" 
+                                     Min="0" 
+                                     Step="1M"
+                                     Class="mb-3" />
+
+                    <MudNumericField @bind-Value="formModel.NumberContainer" 
+                                     Label="Número de Contenedor" 
+                                     Min="0"
+                                     Class="mb-3" />
+
+                    <MudDatePicker @bind-Date="startDate" 
+                                   Label="Fecha de Inicio" 
+                                   Class="mb-3" />
+
+                    <MudSelect @bind-Value="formModel.TypeMaterial" Label="Tipo de Material" Class="mb-3">
+                        @foreach (var type in Enum.GetValues<Entities.Type>())
+                        {
+                            <MudSelectItem Value="@type">
+                                @(type == Entities.Type.MateriaPrima ? "Materia Prima" : "Empaque")
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    @if (formModel.TypeMaterial == Entities.Type.MateriaPrima)
+                    {
+                        <MudTextField @bind-Value="formModel.Manufacturing" 
+                                      Label="Manufactura"
+                                      Class="mb-3" />
+                    }
+
+                    <MudSelect @bind-Value="formModel.StateLot" Label="Estado" Class="mb-4">
+                        @foreach (var state in Enum.GetValues<State>())
+                        {
+                            <MudSelectItem Value="@state">
+                                @GetStateName(state)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudStack Row="true" Class="mb-2">
+                        <MudButton ButtonType="ButtonType.Submit" 
+                                   Color="Color.Success"
+                                   Variant="Variant.Filled"
+                                   FullWidth="true">
+                            @(isEditing ? "Actualizar" : "Crear")
+                        </MudButton>
+                        @if (isEditing)
+                        {
+                            <MudButton OnClick="@ResetForm" 
+                                       Color="Color.Default" 
+                                       Variant="Variant.Outlined"
+                                       FullWidth="true">
+                                Cancelar
+                            </MudButton>
+                        }
+                    </MudStack>
+                </EditForm>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private IEnumerable<LotDto> lots = null!;
+    private IEnumerable<SupplierDto> suppliers = null!;
+    private LotFormModel formModel = new();
+    private bool isEditing = false;
+    private int editingId = 0;
+    private int? idReadOnly;
+    private DateTime? startDate;
+
+    /// <summary>
+    /// Inicializa el componente cargando lotes y proveedores.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSuppliers();
+        await LoadLots();
+    }
+
+    /// <summary>
+    /// Carga todos los proveedores.
+    /// </summary>
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            suppliers = await SupplierService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar los proveedores: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Carga todos los lotes del servicio.
+    /// </summary>
+    private async Task LoadLots()
+    {
+        try
+        {
+            lots = await LotService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar los lotes: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Prepara el formulario para editar un lote.
+    /// </summary>
+    private void EditLot(LotDto lot)
+    {
+        isEditing = true;
+        editingId = lot.Id;
+        idReadOnly = lot.Id;
+        startDate = lot.StartDate;
+        formModel = new LotFormModel
+        {
+            Code = lot.Code,
+            Name = lot.Name,
+            Batch = lot.Batch,
+            Quantity = lot.Quantity,
+            NumberContainer = lot.NumberContainer,
+            LotSuplier = lot.LotSuplier,
+            StateLot = lot.StateLot,
+            TypeMaterial = lot.TypeMaterial,
+            Manufacturing = lot.Manufacturing
+        };
+    }
+
+    /// <summary>
+    /// Maneja el envío del formulario para crear o actualizar un lote.
+    /// </summary>
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            if (isEditing)
+            {
+                var updateDto = new UpdateLotDto
+                {
+                    Id = editingId,
+                    Code = formModel.Code,
+                    Name = formModel.Name,
+                    Batch = formModel.Batch,
+                    Quantity = formModel.Quantity,
+                    NumberContainer = formModel.NumberContainer,
+                    StartDate = startDate,
+                    LotSuplier = formModel.LotSuplier,
+                    StateLot = formModel.StateLot,
+                    TypeMaterial = formModel.TypeMaterial,
+                    Manufacturing = formModel.Manufacturing
+                };
+
+                var result = await LotService.UpdateAsync(editingId, updateDto);
+                if (result != null)
+                {
+                    Snackbar.Add("✅ Lote actualizado correctamente", Severity.Success);
+                    ResetForm();
+                }
+                else
+                {
+                    Snackbar.Add("❌ No se encontró el lote", Severity.Warning);
+                }
+            }
+            else
+            {
+                var createDto = new CreateLotDto
+                {
+                    Code = formModel.Code,
+                    Name = formModel.Name,
+                    Batch = formModel.Batch,
+                    Quantity = formModel.Quantity,
+                    NumberContainer = formModel.NumberContainer,
+                    StartDate = startDate,
+                    LotSuplier = formModel.LotSuplier,
+                    StateLot = formModel.StateLot,
+                    TypeMaterial = formModel.TypeMaterial,
+                    Manufacturing = formModel.Manufacturing
+                };
+
+                var result = await LotService.CreateAsync(createDto);
+                if (result != null)
+                {
+                    Snackbar.Add("✅ Lote creado correctamente", Severity.Success);
+                    ResetForm();
+                }
+            }
+
+            await LoadLots();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Elimina un lote.
+    /// </summary>
+    private async Task DeleteLot(int id)
+    {
+        try
+        {
+            await LotService.DeleteAsync(id);
+            Snackbar.Add("✅ Lote eliminado correctamente", Severity.Success);
+            await LoadLots();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error al eliminar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Reinicia el formulario.
+    /// </summary>
+    private void ResetForm()
+    {
+        isEditing = false;
+        editingId = 0;
+        idReadOnly = null;
+        formModel = new LotFormModel();
+        startDate = DateTime.Now;
+    }
+
+    /// <summary>
+    /// Obtiene el nombre del estado.
+    /// </summary>
+    private string GetStateName(State state)
+    {
+        return state switch
+        {
+            State.Pendiente => "Pendiente",
+            State.Aceptado => "Aceptado",
+            State.Rechazado => "Rechazado",
+            _ => "Desconocido"
+        };
+    }
+
+    /// <summary>
+    /// Modelo para el formulario de lote.
+    /// </summary>
+    private class LotFormModel
+    {
+        public string? Code { get; set; }
+        public string? Name { get; set; }
+        public string? Batch { get; set; }
+        public decimal? Quantity { get; set; }
+        public int NumberContainer { get; set; }
+        public string? LotSuplier { get; set; }
+        public State StateLot { get; set; } = State.Pendiente;
+        public Entities.Type TypeMaterial { get; set; } = Entities.Type.Empaque;
+        public string? Manufacturing { get; set; }
+    }
+}

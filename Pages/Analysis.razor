@@ -1,0 +1,298 @@
+@page "/analysis"
+@using BlazorWasmApp.DTOs
+@using BlazorWasmApp.Services
+@using MudBlazor
+@inject AnalysisService AnalysisService
+@inject ISnackbar Snackbar
+
+<PageTitle>Gestión de Análisis</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
+    <MudText Typo="Typo.h3" Class="mb-4">Gestión de Análisis</MudText>
+    <MudText Typo="Typo.body2" Class="mb-6" Color="Color.Secondary">
+        Simulación con base de datos en memoria - Entidades de Analysis con tabla CRUD
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" sm="8">
+            <!-- Tabla de Análisis -->
+            <MudPaper Class="pa-4 mb-4">
+                <MudText Typo="Typo.h5" Class="mb-4">Lista de Análisis</MudText>
+
+                @if (analyses == null)
+                {
+                    <MudProgressCircular IsIndeterminate="true" />
+                }
+                else if (!analyses.Any())
+                {
+                    <MudAlert Severity="Severity.Info">No hay análisis registrados.</MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="analyses" Hover="true" FixedHeader="true" Height="400px" Class="mb-4">
+                        <HeaderContent>
+                            <MudTh>ID</MudTh>
+                            <MudTh>Fecha Creación</MudTh>
+                            <MudTh>Fecha Expiración</MudTh>
+                            <MudTh>Cantidad</MudTh>
+                            <MudTh>Estado</MudTh>
+                            <MudTh>Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="ID">
+                                <MudText Typo="Typo.body2" Inline="true">
+                                    <strong>@context.Id</strong>
+                                </MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Fecha Creación">
+                                <MudText Typo="Typo.body2">@context.Create.ToString("dd/MM/yyyy")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Fecha Expiración">
+                                <MudText Typo="Typo.body2">@context.Expirate.ToString("dd/MM/yyyy")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Cantidad">
+                                <MudText Typo="Typo.body2">@context.Quantity</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Estado">
+                                @if (context.Expirate < DateTime.Now)
+                                {
+                                    <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small">Expirado</MudChip>
+                                }
+                                else if (context.Expirate < DateTime.Now.AddDays(7))
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">Próximo a expirar</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small">Vigente</MudChip>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Acciones">
+                                <MudButtonGroup Size="Size.Small" Variant="Variant.Text">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   OnClick="@(() => EditAnalysis(context))" 
+                                                   Title="Editar"
+                                                   Color="Color.Info" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   OnClick="@(() => DeleteAnalysis(context.Id))" 
+                                                   Title="Eliminar"
+                                                   Color="Color.Error" />
+                                </MudButtonGroup>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="4">
+            <!-- Formulario CRUD -->
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h5" Class="mb-4">
+                    @(isEditing ? "✏️ Editar Análisis" : "➕ Nuevo Análisis")
+                </MudText>
+
+                <EditForm Model="formModel" OnSubmit="@HandleSubmit">
+                    <DataAnnotationsValidator />
+
+                    @if (isEditing)
+                    {
+                        <MudTextField @bind-Value="idReadOnly" 
+                                      Label="ID" 
+                                      Disabled="true"
+                                      Class="mb-3" />
+                    }
+
+                    <MudDatePicker @bind-Date="dateCreate" 
+                                   Label="Fecha Creación" 
+                                   Class="mb-3" />
+
+                    <MudDatePicker @bind-Date="dateExpirate" 
+                                   Label="Fecha Expiración" 
+                                   Class="mb-3" />
+
+                    <MudNumericField @bind-Value="formModel.Quantity" 
+                                     Label="Cantidad" 
+                                     Min="0" 
+                                     Step="0.01M"
+                                     Class="mb-4" />
+
+                    <MudStack Row="true" Class="mb-2">
+                        <MudButton ButtonType="ButtonType.Submit" 
+                                   Color="Color.Success"
+                                   Variant="Variant.Filled"
+                                   FullWidth="true">
+                            @(isEditing ? "Actualizar" : "Crear")
+                        </MudButton>
+                        @if (isEditing)
+                        {
+                            <MudButton OnClick="@ResetForm" 
+                                       Color="Color.Default" 
+                                       Variant="Variant.Outlined"
+                                       FullWidth="true">
+                                Cancelar
+                            </MudButton>
+                        }
+                    </MudStack>
+                </EditForm>
+
+                @if (!isEditing)
+                {
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">
+                        <strong>Datos en memoria:</strong> Los cambios se pierden al recargar la página.
+                    </MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private IEnumerable<AnalysisDto> analyses = null!;
+    private AnalysisFormModel formModel = new();
+    private bool isEditing = false;
+    private int editingId = 0;
+    private DateTime? dateCreate;
+    private DateTime? dateExpirate;
+    private int? idReadOnly;
+
+    /// <summary>
+    /// Inicializa el componente cargando los análisis.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        dateCreate = DateTime.Now;
+        dateExpirate = DateTime.Now.AddDays(100);
+        await LoadAnalyses();
+    }
+
+    /// <summary>
+    /// Carga todos los análisis del servicio.
+    /// </summary>
+    private async Task LoadAnalyses()
+    {
+        try
+        {
+            analyses = await AnalysisService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar los análisis: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Prepara el formulario para editar un análisis.
+    /// </summary>
+    private void EditAnalysis(AnalysisDto analysis)
+    {
+        isEditing = true;
+        editingId = analysis.Id;
+        idReadOnly = analysis.Id;
+        dateCreate = analysis.Create;
+        dateExpirate = analysis.Expirate;
+        formModel = new AnalysisFormModel
+        {
+            Quantity = analysis.Quantity
+        };
+    }
+
+    /// <summary>
+    /// Maneja el envío del formulario para crear o actualizar un análisis.
+    /// </summary>
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            // Validar fechas
+            if (dateCreate == null || dateExpirate == null)
+            {
+                Snackbar.Add("Las fechas son obligatorias", Severity.Warning);
+                return;
+            }
+
+            if (isEditing)
+            {
+                var updateDto = new UpdateAnalysisDto
+                {
+                    Id = editingId,
+                    Create = dateCreate.Value,
+                    Expirate = dateExpirate.Value,
+                    Quantity = formModel.Quantity
+                };
+
+                var result = await AnalysisService.UpdateAsync(editingId, updateDto);
+                if (result != null)
+                {
+                    Snackbar.Add("Análisis actualizado correctamente", Severity.Success);
+                    ResetForm();
+                }
+                else
+                {
+                    Snackbar.Add("No se encontró el análisis", Severity.Warning);
+                }
+            }
+            else
+            {
+                var createDto = new CreateAnalysisDto
+                {
+                    Create = dateCreate.Value,
+                    Expirate = dateExpirate.Value,
+                    Quantity = formModel.Quantity
+                };
+
+                var result = await AnalysisService.CreateAsync(createDto);
+                if (result != null)
+                {
+                    Snackbar.Add("Análisis creado correctamente", Severity.Success);
+                    ResetForm();
+                }
+            }
+
+            await LoadAnalyses();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Elimina un análisis después de confirmar con el usuario.
+    /// </summary>
+    private async Task DeleteAnalysis(int id)
+    {
+        try
+        {
+            await AnalysisService.DeleteAsync(id);
+            Snackbar.Add("Análisis eliminado correctamente", Severity.Success);
+            await LoadAnalyses();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al eliminar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Reinicia el formulario.
+    /// </summary>
+    private void ResetForm()
+    {
+        isEditing = false;
+        editingId = 0;
+        idReadOnly = null;
+        formModel = new AnalysisFormModel();
+        dateCreate = DateTime.Now;
+        dateExpirate = DateTime.Now.AddDays(100);
+    }
+
+    /// <summary>
+    /// Modelo para el formulario de análisis.
+    /// </summary>
+    private class AnalysisFormModel
+    {
+        public decimal Quantity { get; set; }
+    }
+}

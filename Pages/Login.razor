@@ -1,0 +1,185 @@
+@page "/login"
+@using BlazorWasmApp.Services
+@using MudBlazor
+@inject AuthenticationService AuthService
+@inject NavigationManager NavManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Iniciar Sesión</PageTitle>
+
+<div class="login-container">
+    <MudPaper Class="pa-8 login-paper" Elevation="3">
+        <MudStack Spacing="4" AlignItems="AlignItems.Center">
+            <!-- Logo/Título -->
+            <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h3" Align="Align.Center" Class="font-weight-bold">
+                    Iniciar Sesión
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                    Gestión de Lotes y Análisis
+                </MudText>
+            </MudStack>
+
+            <!-- Formulario -->
+            <EditForm Model="loginModel" OnSubmit="@HandleLogin" Class="login-form w-100">
+                <DataAnnotationsValidator />
+
+                <MudStack Spacing="3">
+                    <MudTextField 
+                        @bind-Value="loginModel.Username"
+                        Label="Usuario"
+                        Placeholder="Ingresa tu usuario"
+                        Variant="Variant.Outlined"
+                        Icon="@Icons.Material.Filled.Person"
+                        FullWidth="true"
+                        Disabled="isLoading"
+                        Required="true"
+                        AutoFocus="true" />
+
+                    <MudTextField 
+                        @bind-Value="loginModel.Password"
+                        Label="Contraseña"
+                        Placeholder="Ingresa tu contraseña"
+                        InputType="inputType"
+                        Variant="Variant.Outlined"
+                        Icon="@Icons.Material.Filled.Lock"
+                        Adornment="Adornment.End"
+                        AdornmentIcon="@toggleIcon"
+                        OnAdornmentClick="@ToggleShowPassword"
+                        FullWidth="true"
+                        Disabled="isLoading"
+                        Required="true" />
+
+                    <MudButton 
+                        ButtonType="ButtonType.Submit"
+                        Color="Color.Primary"
+                        Variant="Variant.Filled"
+                        Size="Size.Large"
+                        FullWidth="true"
+                        Disabled="isLoading">
+                        @if (isLoading)
+                        {
+                            <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                            <span>Autenticando...</span>
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+                            <span>Iniciar Sesión</span>
+                        }
+                    </MudButton>
+                </MudStack>
+            </EditForm>
+
+            <!-- Información de Credenciales de Demostración -->
+            <MudDivider Class="w-100" />
+
+            <MudAlert Severity="Severity.Info" Class="w-100 demo-info">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold">
+                        📝 Credenciales de Demostración:
+                    </MudText>
+                    <MudText Typo="Typo.body2">
+                        <strong>Usuario:</strong> admin &nbsp;&nbsp; <strong>Contraseña:</strong> admin123
+                    </MudText>
+                    <MudText Typo="Typo.body2">
+                        <strong>Usuario:</strong> usuario &nbsp;&nbsp; <strong>Contraseña:</strong> password123
+                    </MudText>
+                </MudStack>
+            </MudAlert>
+        </MudStack>
+    </MudPaper>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+
+    .login-paper {
+        width: 100%;
+        max-width: 400px;
+        background: white;
+    }
+
+    .login-form {
+        width: 100%;
+    }
+
+    .demo-info {
+        background-color: #e3f2fd !important;
+        border-left: 4px solid #2196f3;
+    }
+</style>
+
+@code {
+    private LoginFormModel loginModel = new();
+    private bool isLoading = false;
+    private bool showPassword = false;
+
+    private InputType inputType => showPassword ? InputType.Text : InputType.Password;
+    private string toggleIcon => showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility;
+
+    /// <summary>
+    /// Alterna la visibilidad de la contraseña.
+    /// </summary>
+    private void ToggleShowPassword()
+    {
+        showPassword = !showPassword;
+    }
+
+    /// <summary>
+    /// Maneja el envío del formulario de login.
+    /// </summary>
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(loginModel.Username) || string.IsNullOrWhiteSpace(loginModel.Password))
+        {
+            Snackbar.Add("Por favor completa todos los campos", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            var result = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+
+            if (result)
+            {
+                Snackbar.Add($"✅ Bienvenido, {AuthService.CurrentUser?.FullName}!", Severity.Success);
+                // Redirigir al dashboard después de 500ms
+                await Task.Delay(500);
+                NavManager.NavigateTo("/dashboard", forceLoad: true);
+            }
+            else
+            {
+                Snackbar.Add("❌ Usuario o contraseña incorrectos", Severity.Error);
+                loginModel.Password = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Modelo para el formulario de login.
+    /// </summary>
+    private class LoginFormModel
+    {
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+    }
+}
