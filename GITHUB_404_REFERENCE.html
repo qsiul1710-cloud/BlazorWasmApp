@@ -1,0 +1,35 @@
+<!-- Redirección automática para rutas de Blazor en GitHub Pages -->
+<!-- Guardar este contenido en 404.html si aún no funciona -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>BlazorWasmApp</title>
+    <script>
+      // Configuración para Blazor WASM en GitHub Pages
+      var pathSegments = window.location.pathname.split('/').filter(function(p) { return p; });
+
+      // Detectar si estamos en /BlazorWasmApp/ y extraer la ruta real
+      var basePath = '/BlazorWasmApp';
+      var repositoryName = 'BlazorWasmApp';
+
+      if (pathSegments[0] === repositoryName) {
+        pathSegments.shift(); // Remover el nombre del repositorio
+      }
+
+      var path = '/' + pathSegments.join('/');
+
+      // Si la ruta no es raíz y no es un archivo específico (sin extensión),
+      // redirigir a index.html con hash para que Blazor Router lo maneje
+      if (path !== '/' && !path.endsWith('.html') && !path.endsWith('.js') && !path.endsWith('.css') && !path.endsWith('.wasm')) {
+        window.location.replace(basePath + '/?redirect=' + encodeURIComponent(path));
+      } else {
+        window.location.replace(basePath + '/');
+      }
+    </script>
+  </head>
+  <body>
+    Redirigiendo a la aplicación...
+  </body>
+</html>
